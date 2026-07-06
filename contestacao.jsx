@@ -547,7 +547,7 @@ export default function App() {
                 cursor: "pointer",
               }}
             >
-              <div style={{ fontWeight: 700, color: "#fff", fontSize: "15px" }}>Sou Coordenadora</div>
+              <div style={{ fontWeight: 700, color: "#fff", fontSize: "15px" }}>GECOM</div>
               <div style={{ fontSize: "12.5px", color: "#C9BFA6" }}>Analisar e responder contestações</div>
             </button>
           </div>
