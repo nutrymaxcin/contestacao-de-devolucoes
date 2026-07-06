@@ -1,4 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseUrl = "https://iorkgxlmiaencdqbsppr.supabase.co";
+const supabaseAnonKey = "sb_publishable_cEVEPZKra-SUlLrt41BwkQ_yUeJDrlJ";
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 
 const MOTIVOS_ORIGINAIS = [
   "Cliente desistiu da compra",
@@ -404,12 +410,19 @@ export default function App() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await window.storage.get("contestacoes", true);
-      setItems(res ? JSON.parse(res.value) : []);
-    } catch {
-      setItems([]);
+      const { data, error } = await supabase
+        .from('contestacoes')
+        .select('*')
+        .order('criadoEm', { ascending: false });
+      
+      if (error) throw error;
+      setItems(data || []);
+    } catch (err) {
+      console.error(err);
+      setError("Erro ao carregar dados do banco.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -425,17 +438,7 @@ export default function App() {
     }
   };
 
-  const save = async (next) => {
-    setItems(next);
-    try {
-      await window.storage.set("contestacoes", JSON.stringify(next), true);
-    } catch {
-      setError("Não foi possível salvar. Tente novamente.");
-      setTimeout(() => setError(null), 3000);
-    }
-  };
-
-  const addItem = (form) => {
+  const addItem = async (form) => {
     const novo = {
       id: uid(),
       ...form,
@@ -443,15 +446,43 @@ export default function App() {
       retorno: "",
       criadoEm: new Date().toISOString(),
     };
-    save([novo, ...items]);
+    
+    setItems([novo, ...items]); // Atualização otimista
+    
+    try {
+      const { error } = await supabase.from('contestacoes').insert([novo]);
+      if (error) throw error;
+    } catch (err) {
+      console.error(err);
+      setError("Não foi possível salvar a contestação no banco.");
+      load(); // Recarrega para reverter
+    }
   };
 
-  const updateItem = (id, patch) => {
-    save(items.map((it) => (it.id === id ? { ...it, ...patch } : it)));
+  const updateItem = async (id, patch) => {
+    setItems(items.map((it) => (it.id === id ? { ...it, ...patch } : it))); // Atualização otimista
+    
+    try {
+      const { error } = await supabase.from('contestacoes').update(patch).eq('id', id);
+      if (error) throw error;
+    } catch (err) {
+      console.error(err);
+      setError("Não foi possível atualizar a contestação no banco.");
+      load();
+    }
   };
 
-  const deleteItem = (id) => {
-    save(items.filter((it) => it.id !== id));
+  const deleteItem = async (id) => {
+    setItems(items.filter((it) => it.id !== id)); // Atualização otimista
+    
+    try {
+      const { error } = await supabase.from('contestacoes').delete().eq('id', id);
+      if (error) throw error;
+    } catch (err) {
+      console.error(err);
+      setError("Não foi possível deletar a contestação no banco.");
+      load();
+    }
   };
 
   const filtered = items.filter((it) => (filter === "Todos" ? true : it.status === filter));
